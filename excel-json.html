@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Excel/CSV → JSON Üretici</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 820px; margin: 24px auto; padding: 0 16px; color: #1a1a1a; }
+  h1 { font-size: 20px; }
+  .box { background: #f7f7f9; border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin: 12px 0; }
+  ol { line-height: 1.7; }
+  button { padding: 8px 14px; border: none; border-radius: 6px; background: #e8462a; color: #fff; font-size: 14px; cursor: pointer; }
+  button.sec { background: #444; }
+  input[type=file] { margin: 8px 0; }
+  .card { border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin: 10px 0; }
+  .card h3 { margin: 0 0 6px; font-size: 14px; }
+  pre { background: #1e1e1e; color: #dcdcdc; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; max-height: 220px; }
+  .err { color: #c0392b; }
+  .muted { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>📄 Excel/CSV → JSON Üretici</h1>
+
+  <div class="box">
+    <b>Nasıl kullanılır?</b>
+    <ol>
+      <li><code>sablon.csv</code> dosyasını <b>Excel ile aç</b> (çift tıkla).</li>
+      <li>Her <b>satır = bir ürün</b>. Kolonları doldur, istediğin kadar satır ekle.</li>
+      <li>Excel'de <b>Farklı Kaydet → CSV UTF-8 (virgülle ayrılmış)</b> olarak kaydet.</li>
+      <li>Aşağıdan o CSV'yi seç → her ürün için JSON üretilir, tek tek indir.</li>
+    </ol>
+    <span class="muted">Not: <code>site</code> alanı otomatik olarak <code>"auto"</code> yazılır. Fiyat/stok gibi sayısal alanlar otomatik sayıya çevrilir; boş hücreler atlanır.</span>
+  </div>
+
+  <input type="file" id="file" accept=".csv,.txt">
+  <div id="status" class="muted"></div>
+  <div style="margin:10px 0">
+    <button id="allBtn" style="display:none">⬇ Tümünü tek dosya (dizi) indir</button>
+  </div>
+  <div id="out"></div>
+
+<script>
+const NUMERIC = new Set([
+  "satis.piyasa_fiyati","satis.satis_fiyati","satis.stok_adet",
+  "satis.hazirlik_suresi","satis.kdv_orani"
+]);
+
+// --- Tirnak + coklu satir destekli CSV ayiristirici ---
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
+  const rows = []; let row = [], cell = "", i = 0, inQ = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { cell += '"'; i++; } else inQ = false; }
+      else cell += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { row.push(cell); cell = ""; }
+      else if (c === '\r') { /* yok say */ }
+      else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ""; }
+      else cell += c;
+    }
+    i++;
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim() !== ""));
+}
+
+// Dotted anahtari nested objeye yerlestir
+function setPath(obj, path, val) {
+  const keys = path.split(".");
+  let o = obj;
+  for (let k = 0; k < keys.length - 1; k++) { o[keys[k]] = o[keys[k]] || {}; o = o[keys[k]]; }
+  o[keys[keys.length - 1]] = val;
+}
+
+function rowToObj(headers, cells) {
+  const o = {}; // site tutulmaz — eklenti URL'den cozer
+  headers.forEach((h, idx) => {
+    h = h.trim(); if (!h) return;
+    let v = (cells[idx] ?? "").trim();
+    if (v === "") { setPath(o, h, NUMERIC.has(h) ? null : ""); return; }
+    if (NUMERIC.has(h)) { const n = Number(v.replace(",", ".")); v = isNaN(n) ? v : n; }
+    setPath(o, h, v);
+  });
+  return o;
+}
+
+function download(name, text) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+let ALL = [];
+document.getElementById("file").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const status = document.getElementById("status");
+    const out = document.getElementById("out"); out.innerHTML = "";
+    try {
+      const rows = parseCSV(r.result);
+      if (rows.length < 2) { status.innerHTML = '<span class="err">En az bir başlık + bir veri satırı gerekli.</span>'; return; }
+      const headers = rows[0];
+      ALL = rows.slice(1).map(cells => rowToObj(headers, cells));
+      status.textContent = ALL.length + " ürün bulundu.";
+      document.getElementById("allBtn").style.display = ALL.length > 1 ? "inline-block" : "none";
+      ALL.forEach((obj, idx) => {
+        const name = "urun-" + (obj?.satis?.stok_kodu || (idx + 1)) + ".json";
+        const json = JSON.stringify(obj, null, 2);
+        const card = document.createElement("div"); card.className = "card";
+        const h = document.createElement("h3"); h.textContent = (idx + 1) + ") " + (obj.urun_adi || "(isimsiz)");
+        const btn = document.createElement("button"); btn.textContent = "⬇ " + name;
+        btn.onclick = () => download(name, json);
+        const pre = document.createElement("pre"); pre.textContent = json;
+        card.append(h, btn, pre); out.appendChild(card);
+      });
+    } catch (err) {
+      status.innerHTML = '<span class="err">Hata: ' + err.message + '</span>';
+    }
+  };
+  r.readAsText(f, "UTF-8");
+});
+
+document.getElementById("allBtn").onclick = () => download("urunler.json", JSON.stringify(ALL, null, 2));
+</script>
+</body>
+</html>

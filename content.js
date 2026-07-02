@@ -20,6 +20,15 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  // Para/fiyat bicimi: gereksiz ondalik sifirlari at (999.00 -> "999", 999.50 -> "999.5").
+  // Sitelerin fiyat alani sondaki sifirlari yanlis yorumladigi icin tam sayida ondalik yazilmaz.
+  function formatMoney(v) {
+    if (v === null || v === undefined || v === "") return "";
+    const n = Number(String(v).replace(",", "."));
+    if (isNaN(n)) return String(v);
+    return String(n); // JS Number sondaki sifirlari zaten atar: 999.00 -> 999
+  }
+
   // Aciklama metnini <p> etiketli HTML'e cevir.
   function toParagraphs(text) {
     return String(text)
@@ -124,8 +133,8 @@
     // 7-12) Input alanlari
     fillInput('[id^="gtin-"]', satis.barkod, log, "Barkod");
     fillInput('[id^="stockCode-"]', satis.stok_kodu, log, "Stok Kodu");
-    fillInput('[id^="listPrice-"]', satis.piyasa_fiyati, log, "Piyasa Fiyati");
-    fillInput('[id^="salePrice-"]', satis.satis_fiyati, log, "n11 Fiyati");
+    fillInput('[id^="listPrice-"]', formatMoney(satis.piyasa_fiyati), log, "Piyasa Fiyati");
+    fillInput('[id^="salePrice-"]', formatMoney(satis.satis_fiyati), log, "n11 Fiyati");
     fillInput((root) => {
       const els = root.querySelectorAll('[id^="stock-"]');
       for (const e of els) if (!e.id.startsWith("stockCode-")) return e;
@@ -217,12 +226,10 @@
     const satis = data.satis || {};
     const ty = data.trendyol || {};
 
-    // 1) Urun Adi
-    fillBlInputByLabel("Ürün Adı", data.urun_adi, log);
-    // 2) Model Kodu
-    fillBlInputByLabel("Model Kodu", ty.model_kodu, log);
-
-    // 3) Kategori (yaz -> oneri sec)
+    // ISTISNA (Trendyol): Kategori EN BASTA doldurulur.
+    // Cunku "Ürün Adı" once girilirse, o alan kategori aramayi tetikleyip
+    // akisi bozuyor. Bu sayfada once kategori secmek gerekiyor.
+    // 1) Kategori (yaz -> oneri sec)
     if (!isEmpty(ty.kategori_arama_terimi || data.kategori)) {
       const term = ty.kategori_arama_terimi || String(data.kategori).split(">").pop().trim();
       const catEl = getBlInput("Kategori");
@@ -237,6 +244,11 @@
         await sleep(600);
       } else { log.push("❌ Kategori: alan bulunamadi"); }
     } else { log.push("↷ Kategori: bos, atlandi"); }
+
+    // 2) Urun Adi (kategori secildikten SONRA)
+    fillBlInputByLabel("Ürün Adı", data.urun_adi, log);
+    // 3) Model Kodu
+    fillBlInputByLabel("Model Kodu", ty.model_kodu, log);
 
     // 4) Marka
     await fillBlSelectByLabel("Ürün Markası", data.marka, log);
@@ -270,7 +282,7 @@
     };
 
     setCellBl(1, satis.barkod, "Barkod");
-    setCellNative(2, satis.satis_fiyati, "Trendyol Satis Fiyati");
+    setCellNative(2, formatMoney(satis.satis_fiyati), "Trendyol Satis Fiyati");
     setCellNative(3, satis.stok_adet, "Stok");
     if (!isEmpty(satis.kdv_orani)) {
       const cell = tyTableCell(4);
@@ -299,15 +311,17 @@
     trendyol: fillFormTrendyol
   };
 
-  window.__formFiller_run = async function (data, site) {
-    let key = lc(site || data.site);
-    if (key === "auto" || !key) {
-      // "auto" -> URL'den tespit
-      if (/partner\.trendyol\.com/.test(location.href)) key = "trendyol";
-      else if (/so\.n11\.com/.test(location.href)) key = "n11";
-    }
-    const filler = FILLERS[key];
-    if (!filler) return `❌ Desteklenmeyen site: ${key || "(bilinmiyor)"}`;
+  // Site DAIMA sayfanin URL'inden cozulur (JSON'da site bilgisi tutulmaz).
+  function detectSiteFromUrl() {
+    if (/^https:\/\/partner\.trendyol\.com\//.test(location.href)) return "trendyol";
+    if (/^https:\/\/so\.n11\.com\//.test(location.href)) return "n11";
+    return null;
+  }
+
+  window.__formFiller_run = async function (data /*, site (yok sayilir) */) {
+    const key = detectSiteFromUrl();
+    const filler = key && FILLERS[key];
+    if (!filler) return `❌ Desteklenmeyen sayfa: ${location.hostname}`;
     try {
       return await filler(data);
     } catch (err) {

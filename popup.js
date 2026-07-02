@@ -1,5 +1,6 @@
 // popup.js — Form Filler
-// Bilinen site kaliplari. Yeni site eklemek icin buraya ekleyin.
+// Site JSON'da TUTULMAZ; her zaman aktif sekmenin URL'inden tespit edilir.
+// Yeni site eklemek icin SITE_PATTERNS'e bir satir ekleyin.
 const SITE_PATTERNS = [
   { site: "n11", match: /^https:\/\/so\.n11\.com\// },
   { site: "trendyol", match: /^https:\/\/partner\.trendyol\.com\// }
@@ -10,18 +11,24 @@ const statusEl = document.getElementById("status");
 const siteBadge = document.getElementById("siteBadge");
 const fileInput = document.getElementById("fileInput");
 
-// --- Durum / log alani ---
+// Ekrandaki tum log satirlarinin ham metnini tutar (kopyala/indir icin).
+let logLines = [];
+
+// --- Durum / log alani -----------------------------------------------------
 function clearStatus() {
   statusEl.innerHTML = "";
+  logLines = [];
 }
 function log(line, type = "info") {
   const div = document.createElement("div");
   div.className = "log-" + type;
   div.textContent = line;
   statusEl.appendChild(div);
+  statusEl.scrollTop = statusEl.scrollHeight;
+  logLines.push(line);
 }
 
-// --- Aktif sekmeden siteyi tespit et ---
+// --- Aktif sekmeden siteyi tespit et ---------------------------------------
 function detectSite(url) {
   if (!url) return null;
   for (const p of SITE_PATTERNS) {
@@ -45,7 +52,32 @@ async function refreshSiteBadge() {
 }
 refreshSiteBadge();
 
-// --- Dosya acma ---
+// --- Kalici log gecmisi (chrome.storage.local) -----------------------------
+// Her calisma "ff_logs" altinda zaman damgasiyla saklanir; son 50 kayit tutulur.
+async function saveLog(site, lines) {
+  const entry = {
+    ts: new Date().toISOString(),
+    site: site || "?",
+    url: (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.url || "",
+    lines
+  };
+  const { ff_logs = [] } = await chrome.storage.local.get("ff_logs");
+  ff_logs.unshift(entry);
+  await chrome.storage.local.set({ ff_logs: ff_logs.slice(0, 50) });
+}
+
+// Tum gecmisi tek metne cevirir (indirilecek log dosyasi icerigi).
+async function buildLogFile() {
+  const { ff_logs = [] } = await chrome.storage.local.get("ff_logs");
+  const blocks = ff_logs.map((e) => {
+    const head = `===== ${e.ts} | site: ${e.site} =====\n${e.url}`;
+    return head + "\n" + e.lines.join("\n");
+  });
+  return "FORM FILLER LOG\nUretim: " + new Date().toISOString() + "\n\n" +
+    (blocks.length ? blocks.join("\n\n") : "(kayit yok)") + "\n";
+}
+
+// --- Dosya acma ------------------------------------------------------------
 document.getElementById("openBtn").addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
@@ -58,17 +90,41 @@ fileInput.addEventListener("change", (e) => {
   };
   reader.onerror = () => log("❌ Dosya okunamadi.", "err");
   reader.readAsText(file);
-  fileInput.value = ""; // ayni dosya tekrar secilebilsin
+  fileInput.value = "";
 });
 
-// --- Temizle ---
+// --- Temizle ---------------------------------------------------------------
 document.getElementById("clearBtn").addEventListener("click", () => {
   jsonInput.value = "";
   clearStatus();
   log("Temizlendi.", "info");
 });
 
-// --- Formu Doldur ---
+// --- Log kopyala -----------------------------------------------------------
+document.getElementById("copyBtn").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(logLines.join("\n"));
+    const btn = document.getElementById("copyBtn");
+    const old = btn.textContent;
+    btn.textContent = "✅ Kopyalandi";
+    setTimeout(() => (btn.textContent = old), 1200);
+  } catch (err) {
+    log("❌ Kopyalanamadi: " + err.message, "err");
+  }
+});
+
+// --- Log dosyasi indir (tum gecmis) ----------------------------------------
+document.getElementById("dlBtn").addEventListener("click", async () => {
+  const text = await buildLogFile();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  a.download = "form-filler-log-" + stamp + ".txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// --- Formu Doldur ----------------------------------------------------------
 document.getElementById("fillBtn").addEventListener("click", async () => {
   clearStatus();
 
@@ -78,27 +134,26 @@ document.getElementById("fillBtn").addEventListener("click", async () => {
     data = JSON.parse(jsonInput.value);
   } catch (err) {
     log("❌ Gecersiz JSON: " + err.message, "err");
+    await saveLog("?", logLines);
     return;
   }
 
-  // 2) Aktif sekme + site kontrolu
+  // 2) Aktif sekme + site tespiti (yalnizca URL'den)
   const { tab, site } = await refreshSiteBadge();
   if (!tab?.id) {
     log("❌ Aktif sekme bulunamadi.", "err");
+    await saveLog("?", logLines);
     return;
   }
-  const targetSite = data.site || site;
   if (!site) {
-    log("❌ Bu site desteklenmiyor. n11 satici paneli sayfasinda olun.", "err");
+    log("❌ Desteklenmeyen sayfa. n11 veya Trendyol urun ekleme sayfasinda olun.", "err");
+    await saveLog("?", logLines);
     return;
-  }
-  if (data.site && data.site !== site) {
-    log(`⚠ JSON site="${data.site}" fakat sekme "${site}". Sekmeye gore devam ediliyor.`, "info");
   }
 
   log("▶ Form dolduruluyor (" + site + ")...", "info");
 
-  // 3) Icerik betigindeki fillForm cagrilir
+  // 3) Icerik betigindeki fillForm cagrilir — site URL'den gelen degerdir
   try {
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -108,13 +163,15 @@ document.getElementById("fillBtn").addEventListener("click", async () => {
     const lines = (result?.result || "").split("\n").filter(Boolean);
     if (!lines.length) {
       log("⚠ Icerik betiginden yanit alinamadi. Sayfayi yenileyip tekrar deneyin.", "err");
-      return;
-    }
-    for (const ln of lines) {
-      const t = ln.startsWith("✅") ? "ok" : ln.startsWith("❌") ? "err" : "info";
-      log(ln, t);
+    } else {
+      for (const ln of lines) {
+        const t = ln.startsWith("✅") ? "ok" : ln.startsWith("❌") ? "err" : "info";
+        log(ln, t);
+      }
     }
   } catch (err) {
     log("❌ Calistirma hatasi: " + err.message, "err");
   }
+
+  await saveLog(site, logLines);
 });

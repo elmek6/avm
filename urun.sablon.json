@@ -1,0 +1,36 @@
+{
+  "urun_adi": "",
+  "kategori": "",
+  "marka": "",
+  "aciklama": "",
+  "ozellikler": {
+    "uyumlu_marka": "",
+    "pil_gucu": "",
+    "secenek": "",
+    "garanti_suresi": ""
+  },
+  "satis": {
+    "barkod": "",
+    "stok_kodu": "",
+    "parti_kodu": "",
+    "piyasa_fiyati": null,
+    "satis_fiyati": null,
+    "stok_adet": null,
+    "hazirlik_suresi": null,
+    "kdv_orani": null,
+    "para_birimi": ""
+  },
+  "n11": {
+    "kategori_arama_terimi": ""
+  },
+  "trendyol": {
+    "model_kodu": "",
+    "kategori_arama_terimi": "",
+    "mensei": "",
+    "garanti_suresi": "",
+    "garanti_tipi": "",
+    "pil_gucu_mah": "",
+    "uyumlu_marka": "",
+    "tamir_edilebilirlik": ""
+  }
+}

@@ -56,6 +56,21 @@
     button:hover { background: #ddd; }
     #fillBtn { background: #e8462a; color: #fff; }
     #fillBtn:hover { background: #c93a20; }
+    .log-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 4px 0 3px;
+      font-size: 12px;
+      color: #555;
+    }
+    .log-actions { display: flex; gap: 4px; }
+    button.mini {
+      flex: none;
+      font-size: 11px;
+      padding: 3px 7px;
+      background: #eee;
+    }
     #status {
       background: #fff;
       border: 1px solid #ddd;
@@ -87,6 +102,13 @@
     <button id="clearBtn">🗑 Temizle</button>
   </div>
 
+  <div class="log-head">
+    <span>Kayit / Log</span>
+    <span class="log-actions">
+      <button id="copyBtn" class="mini" title="Logu panoya kopyala">📋 Kopyala</button>
+      <button id="dlBtn" class="mini" title="Logu .txt dosyasi olarak indir">💾 Log Indir</button>
+    </span>
+  </div>
   <div id="status" class="log-info">Hazir.</div>
 
   <input type="file" id="fileInput" accept=".json" hidden>
