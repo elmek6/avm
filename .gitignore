@@ -55,3 +55,24 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+### Editor / IDE
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*~
+
+### Chrome eklenti paketleri
+*.zip
+*.crx
+*.pem
+
+### Gecici dosyalar
+tmp/
+temp/
+scratchpad/
+
+### Ozel/gizli urun verileri (ornek disinda commit'lenmesin)
+urun-*.json
+!urun.json

@@ -13,6 +13,11 @@
       "matches": ["https://so.n11.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://partner.trendyol.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ]
 }

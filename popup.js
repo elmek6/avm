@@ -1,7 +1,8 @@
 // popup.js — Form Filler
 // Bilinen site kaliplari. Yeni site eklemek icin buraya ekleyin.
 const SITE_PATTERNS = [
-  { site: "n11", match: /^https:\/\/so\.n11\.com\// }
+  { site: "n11", match: /^https:\/\/so\.n11\.com\// },
+  { site: "trendyol", match: /^https:\/\/partner\.trendyol\.com\// }
 ];
 
 const jsonInput = document.getElementById("jsonInput");
@@ -32,9 +33,10 @@ function detectSite(url) {
 async function refreshSiteBadge() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const site = detectSite(tab?.url);
+  siteBadge.classList.remove("unknown", "site-n11", "site-trendyol");
   if (site) {
     siteBadge.textContent = site;
-    siteBadge.classList.remove("unknown");
+    siteBadge.classList.add("site-" + site);
   } else {
     siteBadge.textContent = "?";
     siteBadge.classList.add("unknown");
