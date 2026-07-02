@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Form Filler",
+  "version": "1.0.0",
+  "description": "E-ticaret satici panellerinde urun formlarini JSON ile otomatik doldurur (n11).",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Form Filler"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://so.n11.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

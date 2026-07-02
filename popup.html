@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+      width: 380px;
+      margin: 0;
+      padding: 12px;
+      background: #f7f7f9;
+      color: #1a1a1a;
+    }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    header h1 { font-size: 15px; margin: 0; }
+    #siteBadge {
+      font-size: 12px;
+      background: #e8462a;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    #siteBadge.unknown { background: #999; }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 12px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      resize: vertical;
+    }
+    .btn-row {
+      display: flex;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    button {
+      flex: 1;
+      padding: 8px 4px;
+      font-size: 13px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #eee;
+      transition: background .15s;
+    }
+    button:hover { background: #ddd; }
+    #fillBtn { background: #e8462a; color: #fff; }
+    #fillBtn:hover { background: #c93a20; }
+    #status {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px;
+      font-family: "Consolas", monospace;
+      font-size: 11px;
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .log-ok { color: #157a3f; }
+    .log-err { color: #c0392b; }
+    .log-info { color: #555; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Form Filler</h1>
+    <span id="siteBadge" class="unknown">?</span>
+  </header>
+
+  <textarea id="jsonInput" placeholder='JSON verisini buraya yapistirin veya "Open JSON" ile dosya secin...' spellcheck="false"></textarea>
+
+  <div class="btn-row">
+    <button id="openBtn">📂 JSON Ac</button>
+    <button id="fillBtn">▶ Formu Doldur</button>
+    <button id="clearBtn">🗑 Temizle</button>
+  </div>
+
+  <div id="status" class="log-info">Hazir.</div>
+
+  <input type="file" id="fileInput" accept=".json" hidden>
+
+  <script src="popup.js"></script>
+</body>
+</html>
