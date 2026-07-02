@@ -80,6 +80,11 @@ function rowToObj(headers, cells) {
   headers.forEach((h, idx) => {
     h = h.trim(); if (!h) return;
     let v = (cells[idx] ?? "").trim();
+    // kategori_agaci: "A > B > C" -> ["A","B","C"] (dizi)
+    if (h.endsWith("kategori_agaci")) {
+      setPath(o, h, v === "" ? [] : v.split(">").map(s => s.trim()).filter(Boolean));
+      return;
+    }
     if (v === "") { setPath(o, h, NUMERIC.has(h) ? null : ""); return; }
     if (NUMERIC.has(h)) { const n = Number(v.replace(",", ".")); v = isNaN(n) ? v : n; }
     setPath(o, h, v);

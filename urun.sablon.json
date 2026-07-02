@@ -1,13 +1,10 @@
 {
   "urun_adi": "",
-  "kategori": "",
   "marka": "",
   "aciklama": "",
   "ozellikler": {
     "uyumlu_marka": "",
-    "pil_gucu": "",
-    "secenek": "",
-    "garanti_suresi": ""
+    "pil_gucu": ""
   },
   "satis": {
     "barkod": "",
@@ -17,15 +14,16 @@
     "satis_fiyati": null,
     "stok_adet": null,
     "hazirlik_suresi": null,
-    "kdv_orani": null,
-    "para_birimi": ""
+    "kdv_orani": null
   },
   "n11": {
-    "kategori_arama_terimi": ""
+    "kategori_yolu": "",
+    "kategori_arama": "",
+    "secenek": ""
   },
   "trendyol": {
     "model_kodu": "",
-    "kategori_arama_terimi": "",
+    "kategori_agaci": [],
     "mensei": "",
     "garanti_suresi": "",
     "garanti_tipi": "",

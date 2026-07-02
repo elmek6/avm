@@ -1,12 +1,11 @@
 {
-  "urun_adi": "Samsung Galaxy Note 20 Ultra Batarya Samsung N985 Batarya EB-BN985ABY Uyumlu Batarya",  
+  "urun_adi": "Samsung Galaxy Note 20 Ultra Batarya Samsung N985 Batarya EB-BN985ABY Uyumlu Batarya",
   "marka": "Neworg",
-  "aciklama": "Ürün Kodu : EB-BN985ABY\nUyumlu modeller : Samsung Note 20 / N985 / EB-BN985ABY\nGüç : 4500mAh\nUyumlu Marka : Samsung\nÜretici Firma : NewOrg\nGaranti : 6 Ay\nÜretim Yılı : Yeni tarihli gönderim yapılacaktır.\nNot : Sıfır Paketli Ürün\n\nSamsung Note 20 Ultra Batarya Özellikleri\n\nKapasite: 4500 mAh (Tipik değer)\nPil Tipi: Lityum İyon (Li-Ion), çıkarılamaz.\nAkıllı Pil Yönetimi: 120Hz adaptif ekran yenileme hızı ve kullanım alışkanlıklarınıza göre güç tüketimini optimize eden bir yapay zeka desteğine sahiptir.\n\nŞarj Teknolojileri\n\nSüper Hızlı Şarj (Kablolu): 25W hızlı şarj desteği. Bu teknoloji ile cihaz yaklaşık 30 dakikada %50, yaklaşık 1 saatte ise %100 doluluğa ulaşabilir.\nHızlı Kablosuz Şarj 2.0: 15W kablosuz şarj desteği sunar.\nTers Kablosuz Şarj (Wireless PowerShare): 4.5W gücünde, kulaklık veya saat gibi aksesuarları telefonun arkasından şarj edebilir.\n\nKullanım Süreleri (Yaklaşık)\n\nİnternet Kullanımı (Wi-Fi): 16 saate kadar\nVideo Oynatma (Kablosuz): 19 saate kadar\nMüzik Dinleme (Kablosuz): 75 saate kadar\nKonuşma Süresi (4G LTE): 24 saate kadar\n\nİpucu: Ekran yenileme hızını 120Hz'den 60Hz'e düşürmek, yoğun günlerde pil ömrünü yaklaşık %20-%30 oranında artırabilir.",
+  "aciklama": "Ürün Kodu : EB-BN985ABY\nUyumlu modeller : Samsung Note 20 / N985 / EB-BN985ABY\nGüç : 4500mAh\nUyumlu Marka : Samsung\nÜretici Firma : NewOrg\nGaranti : 6 Ay\nÜretim Yılı : Yeni tarihli gönderim yapılacaktır.\nNot : Sıfır Paketli Ürün\n\nSamsung Note 20 Ultra Batarya Özellikleri\n\nKapasite: 4500 mAh (Tipik değer)\nPil Tipi: Lityum İyon (Li-Ion), çıkarılamaz.\nAkıllı Pil Yönetimi: 120Hz adaptif ekran yenileme hızı ve kullanım alışkanlıklarınıza göre güç tüketimini optimize eden bir yapay zeka desteğine sahiptir.\n\nŞarj Teknolojileri\n\nSüper Hızlı Şarj (Kablolu): 25W hızlı şarj desteği. Bu teknoloji ile cihaz yaklaşık 30 dakikada %50, yaklaşık 1 saatte ise %100 doluluğa ulaşabilir.\nHızlı Kablosuz Şarj 2.0: 15W kablosuz şarj desteği sunar.\nTers Kablosuz Şarj (Wireless PowerShare): 4.5W gücünde, kulaklık veya saat gibi aksesuarları telefonun arkasından şarj edebilir.\n\nKullanım Süreleri (Yaklaşık)\n\nİnternet Kullanımı (Wi-Fi): 16 saate kadar\nVideo Oynatma (Kablosuz): 19 saate kadar\nMüzik Dinleme (Kablosuz): 75 saate kadar\nKonuşma Süresi (4G LTE): 24 saate kadar\n\nİpucu: Ekran yenileme hızını 120Hz'den 60Hz'e düşürmek, yoğun günlerde pil ömrünü yaklaşık yüzde 20-30 oranında artırabilir.",
+
   "ozellikler": {
     "uyumlu_marka": "Samsung",
-    "pil_gucu": "4500",
-    "secenek": "Batarya",
-    "garanti_suresi": "6 Ay"
+    "pil_gucu": "4500"
   },
 
   "satis": {
@@ -14,20 +13,21 @@
     "stok_kodu": "MR3Z7K4D85",
     "parti_kodu": "29000022",
     "piyasa_fiyati": 999,
-    "satis_fiyati": 699,
+    "satis_fiyati": 699.9,
     "stok_adet": 100,
     "hazirlik_suresi": 2,
-    "kdv_orani": 20,
-    "para_birimi": "TL"
+    "kdv_orani": 20
   },
 
   "n11": {
-    "kategori_arama_terimi": "Telefon & Aksesuarları > Cep Telefonu Yedek Parça > Batarya"
+    "kategori_yolu": "Telefon & Aksesuarları > Cep Telefonu Yedek Parça > Batarya",
+    "kategori_arama": "Batarya",
+    "secenek": "Batarya"
   },
 
   "trendyol": {
     "model_kodu": "EB-BN985ABY",
-    "kategori_arama_terimi": "Telefon Bataryası",
+    "kategori_agaci": ["Elektronik", "Elektronik Aksesuarlar", "Cep Telefonu Aksesuarları", "Cep Telefonu Yedek Parçaları", "Telefon Bataryası"],
     "mensei": "CN - (Çin)",
     "garanti_suresi": "6 Ay",
     "garanti_tipi": "İthalatçı Garantili",

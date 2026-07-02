@@ -1,5 +1,5 @@
-﻿"urun_adi","kategori","marka","aciklama","ozellikler.uyumlu_marka","ozellikler.pil_gucu","ozellikler.secenek","ozellikler.garanti_suresi","satis.barkod","satis.stok_kodu","satis.parti_kodu","satis.piyasa_fiyati","satis.satis_fiyati","satis.stok_adet","satis.hazirlik_suresi","satis.kdv_orani","satis.para_birimi","n11.kategori_arama_terimi","trendyol.model_kodu","trendyol.kategori_arama_terimi","trendyol.mensei","trendyol.garanti_suresi","trendyol.garanti_tipi","trendyol.pil_gucu_mah","trendyol.uyumlu_marka","trendyol.tamir_edilebilirlik"
-"Samsung Galaxy Note 20 Ultra Batarya Samsung N985 Batarya EB-BN985ABY Uyumlu Batarya","Telefon & Aksesuarları > Cep Telefonu Yedek Parça > Batarya","Neworg","Ürün Kodu : EB-BN985ABY
+﻿"urun_adi","marka","aciklama","ozellikler.uyumlu_marka","ozellikler.pil_gucu","satis.barkod","satis.stok_kodu","satis.parti_kodu","satis.piyasa_fiyati","satis.satis_fiyati","satis.stok_adet","satis.hazirlik_suresi","satis.kdv_orani","n11.kategori_yolu","n11.kategori_arama","n11.secenek","trendyol.model_kodu","trendyol.kategori_agaci","trendyol.mensei","trendyol.garanti_suresi","trendyol.garanti_tipi","trendyol.pil_gucu_mah","trendyol.uyumlu_marka","trendyol.tamir_edilebilirlik"
+"Samsung Galaxy Note 20 Ultra Batarya Samsung N985 Batarya EB-BN985ABY Uyumlu Batarya","Neworg","Ürün Kodu : EB-BN985ABY
 Uyumlu modeller : Samsung Note 20 / N985 / EB-BN985ABY
 Güç : 4500mAh
 Uyumlu Marka : Samsung
@@ -27,4 +27,4 @@ Video Oynatma (Kablosuz): 19 saate kadar
 Müzik Dinleme (Kablosuz): 75 saate kadar
 Konuşma Süresi (4G LTE): 24 saate kadar
 
-İpucu: Ekran yenileme hızını 120Hz'den 60Hz'e düşürmek, yoğun günlerde pil ömrünü yaklaşık %20-%30 oranında artırabilir.","Samsung","4500","Batarya","6 Ay","29000022","MR3Z7K4D85","29000022","999.9","699.9","100","2","20","TL","Batarya","EB-BN985ABY","Telefon Bataryası","CN - (Çin)","6 Ay","İthalatçı Garantili","2800 ve üstü","Samsung Uyumlu","Tamir Edilmez."
+İpucu: Ekran yenileme hızını 120Hz'den 60Hz'e düşürmek, yoğun günlerde pil ömrünü yaklaşık yüzde 20-30 oranında artırabilir.","Samsung","4500","29000022","MR3Z7K4D85","29000022","999","699.9","100","2","20","Telefon & Aksesuarları > Cep Telefonu Yedek Parça > Batarya","Batarya","Batarya","EB-BN985ABY","Elektronik > Elektronik Aksesuarlar > Cep Telefonu Aksesuarları > Cep Telefonu Yedek Parçaları > Telefon Bataryası","CN - (Çin)","6 Ay","İthalatçı Garantili","2800 ve üstü","Samsung Uyumlu","Tamir Edilmez."
