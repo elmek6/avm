@@ -8,6 +8,18 @@
     "pil_gucu": "4500"
   },
 
+  "uretici": {
+    "ad": "NewOrg",
+    "adres": "BURAYA ÜRETİCİ ADRESİNİ YAZIN",
+    "mail": "BURAYA ÜRETİCİ MAİLİNİ YAZIN"
+  },
+
+  "ithalatci": {
+    "ad": "BURAYA İTHALATÇI FİRMA ADINI YAZIN",
+    "adres": "BURAYA İTHALATÇI ADRESİNİ YAZIN",
+    "mail": "BURAYA İTHALATÇI MAİLİNİ YAZIN"
+  },
+
   "satis": {
     "barkod": "29000022",
     "stok_kodu": "MR3Z7K4D85",
@@ -33,6 +45,10 @@
     "garanti_tipi": "İthalatçı Garantili",
     "pil_gucu_mah": "2800 ve üstü",
     "uyumlu_marka": "Samsung Uyumlu",
-    "tamir_edilebilirlik": "Tamir Edilmez."
+    "tamir_edilebilirlik": "Tamir Edilmez.",
+    "cep_telefonu_modeli": "",
+    "ce_uygunluk": "",
+    "diger_ozellikler": "",
+    "kullanim_talimati": ""
   }
 }

@@ -1,14 +1,24 @@
-// content.js — Form Filler
-// so.n11.com ve partner.trendyol.com uzerinde document_idle'da enjekte edilir.
-// popup, window.__formFiller_run(data, site) fonksiyonunu cagirir.
+// content.js — Form Filler MOTORU
+// ---------------------------------------------------------------------------
+// Bu dosya MANTIĞI tutar. "Ne neye karşılık geliyor" bilgisi mapping.js'te
+// (window.__ALAN_HARITASI). Motor, harita üzerinde SIRAYLA gezip her alanı
+// tipine göre doldurur. Site arayüzü değişirse mapping.js düzeltilir; burası değil.
+//
+// popup, window.__formFiller_run(data) fonksiyonunu çağırır.
 
 (function () {
-  // --- Ortak yardimcilar -----------------------------------------------------
+  // --- Ortak yardımcılar -----------------------------------------------------
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const isEmpty = (v) => v === null || v === undefined || v === "";
   const lc = (s) => String(s || "").toLocaleLowerCase("tr");
 
-  // Vanilla JS formlarda deger set etmek icin native setter + event.
+  // urun.json içinde "satis.barkod" gibi bir yola göre değeri getir.
+  function getByPath(obj, path) {
+    if (!path) return undefined;
+    return String(path).split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  }
+
+  // Vanilla JS formlarda değer set etmek için native setter + event.
   function setNativeValue(el, value) {
     const proto = el instanceof HTMLTextAreaElement
       ? HTMLTextAreaElement.prototype
@@ -20,16 +30,15 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  // Para/fiyat bicimi: gereksiz ondalik sifirlari at (999.00 -> "999", 999.50 -> "999.5").
-  // Sitelerin fiyat alani sondaki sifirlari yanlis yorumladigi icin tam sayida ondalik yazilmaz.
+  // Para/fiyat biçimi: gereksiz ondalık sıfırları at (999.00 -> "999", 999.50 -> "999.5").
   function formatMoney(v) {
     if (v === null || v === undefined || v === "") return "";
     const n = Number(String(v).replace(",", "."));
     if (isNaN(n)) return String(v);
-    return String(n); // JS Number sondaki sifirlari zaten atar: 999.00 -> 999
+    return String(n);
   }
 
-  // Aciklama metnini <p> etiketli HTML'e cevir.
+  // Açıklama metnini <p> etiketli HTML'e çevir.
   function toParagraphs(text) {
     return String(text)
       .split("\n")
@@ -37,12 +46,94 @@
       .join("");
   }
 
-  // ==========================================================================
-  //  n11 (custom .dropdownSelectable bilesenleri)
-  // ==========================================================================
-  async function n11FillDropdown(dropdowns, index, searchTerm, matchText, log, label) {
+  // bl-input: shadow DOM içindeki gerçek <input>/<textarea>'ya yaz.
+  function setBlInput(blEl, value) {
+    if (!blEl) return false;
+    const inner = blEl.shadowRoot?.querySelector("input") ||
+                  blEl.shadowRoot?.querySelector("textarea");
+    if (!inner) return false;
+    setNativeValue(inner, String(value));
+    return true;
+  }
+
+  // bl-select: shadow .select-input ile aç, metne göre bl-select-option seç.
+  async function openAndSelectBlOption(blSelectEl, matchText, log, label) {
+    if (isEmpty(matchText)) { log.push(`↷ ${label}: boş, atlandı`); return; }
+    if (!blSelectEl) { log.push(`❌ ${label}: bl-select bulunamadı`); return; }
+    const trigger = blSelectEl.shadowRoot?.querySelector(".select-input");
+    (trigger || blSelectEl).click();
+    await sleep(500);
+    const options = blSelectEl.querySelectorAll("bl-select-option");
+    let picked = null;
+    for (const opt of options) {
+      if (lc(opt.textContent.trim()).includes(lc(matchText))) { picked = opt; break; }
+    }
+    if (!picked && options.length) picked = options[0];
+    if (picked) {
+      const innerOpt = picked.shadowRoot?.firstElementChild ||
+                       picked.shadowRoot?.querySelector("li, div");
+      (innerOpt || picked).click();
+      await sleep(300);
+      log.push(`✅ ${label}: ${picked.textContent.trim()}`);
+    } else {
+      log.push(`❌ ${label}: "${matchText}" seçeneği bulunamadı`);
+    }
+  }
+
+  // bl-select (arayarak): önce yaz/ara, gelen sonuçtan seç (Marka gibi).
+  async function searchAndSelectBl(blSelectEl, value, log, label) {
+    if (isEmpty(value)) { log.push(`↷ ${label}: boş, atlandı`); return; }
+    if (!blSelectEl) { log.push(`❌ ${label}: bl-select bulunamadı`); return; }
+    blSelectEl.shadowRoot?.querySelector(".select-input")?.click();
+    await sleep(300);
+    const searchInp = blSelectEl.shadowRoot?.querySelector("input");
+    if (searchInp) {
+      setNativeValue(searchInp, value);
+      searchInp.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    }
+    await sleep(800); // API sonuçlarını bekle
+    const opts = blSelectEl.querySelectorAll("bl-select-option");
+    let picked = null;
+    for (const opt of opts) {
+      if (lc(opt.textContent.trim()).includes(lc(value))) { picked = opt; break; }
+    }
+    if (!picked && opts.length) picked = opts[0];
+    if (picked) {
+      (picked.shadowRoot?.firstElementChild || picked).click();
+      await sleep(300);
+      log.push(`✅ ${label}: ${picked.textContent.trim()}`);
+    } else { log.push(`❌ ${label}: seçeneği bulunamadı`); }
+  }
+
+  // Trendyol kategori ağacını adım adım tıklayarak gez.
+  async function selectCategoryTree(katInputSel, categoryPath, log) {
+    const katInput = document.querySelector(katInputSel);
+    if (!katInput) { log.push("❌ Kategori: input bulunamadı"); return; }
+    katInput.click();
+    await sleep(400);
+    for (const step of categoryPath) {
+      const items = document.querySelectorAll(".dropdown-item.tree-item");
+      let target = null;
+      for (const item of items) {
+        const text = item.querySelector(".tree-item-content")?.textContent?.trim();
+        if (text === step) { target = item; break; }
+      }
+      if (target) {
+        target.click();
+        await sleep(500);
+        log.push(`✅ Kategori adımı: ${step}`);
+      } else {
+        log.push(`❌ Kategori adımı bulunamadı: "${step}"`);
+        return;
+      }
+    }
+  }
+
+  // n11 .dropdownSelectable bileşeni (index ile).
+  async function n11FillDropdown(index, searchTerm, matchText, log, label) {
+    const dropdowns = document.querySelectorAll(".dropdownSelectable");
     const dd = dropdowns[index];
-    if (!dd) { log.push(`❌ ${label}: dropdown (index ${index}) bulunamadi`); return false; }
+    if (!dd) { log.push(`❌ ${label}: dropdown (index ${index}) bulunamadı`); return false; }
 
     const btn = dd.querySelector(".dropdownSelectable-btn") || dd;
     btn.click();
@@ -75,294 +166,169 @@
       log.push(`✅ ${label}: ${picked.textContent.trim()}`);
       return true;
     }
-    log.push(`❌ ${label}: "${searchTerm}" icin sonuc bulunamadi`);
+    log.push(`❌ ${label}: "${searchTerm}" için sonuç bulunamadı`);
     return false;
   }
 
-  function fillInput(selector, value, log, label, root = document) {
-    if (isEmpty(value)) { log.push(`↷ ${label}: bos, atlandi`); return; }
-    const el = typeof selector === "function" ? selector(root) : root.querySelector(selector);
-    if (!el) { log.push(`❌ ${label}: alan bulunamadi`); return; }
-    setNativeValue(el, String(value));
-    log.push(`✅ ${label}: ${value}`);
-  }
+  // ==========================================================================
+  //  MOTOR — harita üzerinde sırayla gez, her alanı tipine göre doldur.
+  // ==========================================================================
+  async function doldur(siteKey, data) {
+    const harita = (window.__ALAN_HARITASI || {})[siteKey];
+    if (!harita) return `❌ Harita bulunamadı: ${siteKey} (mapping.js yüklü mü?)`;
 
-  async function fillFormN11(data) {
     const log = [];
-    const satis = data.satis || {};
-    const ozellik = data.ozellikler || {};
-    const getDropdowns = () => document.querySelectorAll(".dropdownSelectable");
+    const cells = () => document.querySelectorAll("bl-table-cell");
 
-    // n11 kategori: n11.kategori_arama (arama terimi) + n11.kategori_yolu (tam yol, eslesme icin)
-    const n11 = data.n11 || {};
-    const katYolu = n11.kategori_yolu || "";
-    const katArama = n11.kategori_arama ||
-      (katYolu ? String(katYolu).split(">").pop().trim() : "");
+    for (const [alan, cfg] of Object.entries(harita)) {
+      const label = cfg.etiket || alan;
+      let deger = getByPath(data, cfg.kaynak);
+      if (cfg.para) deger = formatMoney(deger);
 
-    // 1) Urun Adi (= baslik)
-    fillInput("#productName", data.urun_adi, log, "Urun Adi");
+      try {
+        switch (cfg.tip) {
+          // --- Trendyol ---
+          case "kategori-agaci":
+            if (Array.isArray(deger) && deger.length) {
+              await selectCategoryTree(cfg.sec, deger, log);
+              await sleep(800); // özellikler bölümünün yüklenmesini bekle
+            } else { log.push(`↷ ${label}: boş, atlandı`); }
+            break;
 
-    // 2) Kategori (index 0)
-    if (!isEmpty(katArama)) {
-      await n11FillDropdown(getDropdowns(), 0, katArama, katYolu, log, "Kategori");
-      await sleep(1000);
-    } else { log.push("↷ Kategori: bos, atlandi"); }
+          case "bl-input":
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            if (setBlInput(document.querySelector(cfg.sec), String(deger)))
+              log.push(`✅ ${label}: ${deger}`);
+            else log.push(`❌ ${label}: alan bulunamadı (${cfg.sec})`);
+            break;
 
-    // 3) Marka (index 1)
-    if (!isEmpty(data.marka)) {
-      await n11FillDropdown(getDropdowns(), 1, data.marka, data.marka, log, "Marka");
-      await sleep(500);
-    } else { log.push("↷ Marka: bos, atlandi"); }
+          case "bl-select":
+            await openAndSelectBlOption(document.querySelector(cfg.sec), deger, log, label);
+            break;
 
-    // 4) Uyumlu Marka (index 2)
-    if (!isEmpty(ozellik.uyumlu_marka)) {
-      await n11FillDropdown(getDropdowns(), 2, ozellik.uyumlu_marka, ozellik.uyumlu_marka, log, "Uyumlu Marka");
-      await sleep(400);
-    } else { log.push("↷ Uyumlu Marka: bos, atlandi"); }
+          case "bl-select-ara":
+            await searchAndSelectBl(document.querySelector(cfg.sec), deger, log, label);
+            break;
 
-    // 5) Pil Gucu (index 3)
-    if (!isEmpty(ozellik.pil_gucu)) {
-      await n11FillDropdown(getDropdowns(), 3, ozellik.pil_gucu, ozellik.pil_gucu, log, "Pil Gucu");
-      await sleep(400);
-    } else { log.push("↷ Pil Gucu: bos, atlandi"); }
+          case "editor": {
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            const editor = document.querySelector(cfg.sec) ||
+                           document.querySelector('[contenteditable="true"]');
+            if (editor) {
+              editor.focus();
+              editor.innerHTML = toParagraphs(deger);
+              editor.dispatchEvent(new Event("input", { bubbles: true }));
+              log.push(`✅ ${label} dolduruldu`);
+            } else { log.push(`❌ ${label}: editör bulunamadı (${cfg.sec})`); }
+            break;
+          }
 
-    // 6) Secenek (index 4) — n11 blogunda
-    if (!isEmpty(n11.secenek)) {
-      await n11FillDropdown(getDropdowns(), 4, n11.secenek, n11.secenek, log, "Secenek");
-      await sleep(400);
-    } else { log.push("↷ Secenek: bos, atlandi"); }
+          case "tablo-bl-input":
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            if (!cells()[cfg.index]) { log.push(`❌ ${label}: hücre yok (${cfg.index})`); break; }
+            setBlInput(cells()[cfg.index].querySelector("bl-input"), String(deger));
+            log.push(`✅ ${label}: ${deger}`);
+            break;
 
-    // 7-12) Input alanlari
-    fillInput('[id^="gtin-"]', satis.barkod, log, "Barkod");
-    fillInput('[id^="stockCode-"]', satis.stok_kodu, log, "Stok Kodu");
-    fillInput('[id^="listPrice-"]', formatMoney(satis.piyasa_fiyati), log, "Piyasa Fiyati");
-    fillInput('[id^="salePrice-"]', formatMoney(satis.satis_fiyati), log, "n11 Fiyati");
-    fillInput((root) => {
-      const els = root.querySelectorAll('[id^="stock-"]');
-      for (const e of els) if (!e.id.startsWith("stockCode-")) return e;
-      return null;
-    }, satis.stok_adet, log, "Stok Adet");
-    fillInput('[id^="duration-"]', satis.hazirlik_suresi, log, "Hazirlik Suresi");
+          case "tablo-input": {
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            const inp = cells()[cfg.index]?.querySelector("input");
+            if (inp) { setNativeValue(inp, String(deger)); log.push(`✅ ${label}: ${deger}`); }
+            else log.push(`❌ ${label}: hücre yok (${cfg.index})`);
+            break;
+          }
 
-    // 13) KDV Orani (select)
-    if (!isEmpty(satis.kdv_orani)) {
-      const sel = document.querySelector("select.operations-input");
-      if (sel) {
-        sel.value = String(satis.kdv_orani);
-        sel.dispatchEvent(new Event("change", { bubbles: true }));
-        log.push("✅ KDV Orani: " + satis.kdv_orani);
-      } else { log.push("❌ KDV Orani: select bulunamadi"); }
-    } else { log.push("↷ KDV Orani: bos, atlandi"); }
+          case "tablo-bl-select":
+            await openAndSelectBlOption(cells()[cfg.index]?.querySelector("bl-select"),
+              isEmpty(deger) ? "" : String(deger), log, label);
+            break;
 
-    // 14) Aciklama — n11 editoru Jodit'tir, <iframe class="jodit-wysiwyg_iframe"> icindedir.
-    if (!isEmpty(data.aciklama)) {
-      const joditIframe = document.querySelector(".jodit-wysiwyg_iframe");
-      if (joditIframe) {
-        const iDoc = joditIframe.contentDocument || joditIframe.contentWindow?.document;
-        const iBody = iDoc?.body; // contentEditable="true", class="jodit-wysiwyg"
-        if (iBody) {
-          iBody.focus();
-          iBody.innerHTML = toParagraphs(data.aciklama);
-          iBody.dispatchEvent(new Event("input", { bubbles: true }));
-          log.push("✅ Aciklama dolduruldu (Jodit iframe)");
-        } else { log.push("❌ Aciklama: Jodit iframe body bulunamadi"); }
-      } else { log.push("❌ Aciklama: jodit-wysiwyg_iframe bulunamadi"); }
-    } else { log.push("↷ Aciklama: bos, atlandi"); }
+          // --- n11 ---
+          case "input":
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            {
+              const el = document.querySelector(cfg.sec);
+              if (el) { setNativeValue(el, String(deger)); log.push(`✅ ${label}: ${deger}`); }
+              else log.push(`❌ ${label}: alan bulunamadı (${cfg.sec})`);
+            }
+            break;
 
-    log.push("— n11 tamamlandi.");
+          case "select-value": {
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            const sel = document.querySelector(cfg.sec);
+            if (sel) {
+              sel.value = String(deger);
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+              log.push(`✅ ${label}: ${deger}`);
+            } else { log.push(`❌ ${label}: select bulunamadı (${cfg.sec})`); }
+            break;
+          }
+
+          case "n11-dropdown": {
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            const arama = String(deger);
+            const eslesmeYol = cfg.eslesme ? getByPath(data, cfg.eslesme) : "";
+            const eslesme = eslesmeYol || arama;
+            await n11FillDropdown(cfg.index, arama, eslesme, log, label);
+            await sleep(cfg.index === 0 ? 1000 : 400); // kategori sonrası biraz daha bekle
+            break;
+          }
+
+          case "n11-stok": {
+            // n11 stok alanı: id "stock-" ile başlar ama "stockCode-" hariç.
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            const els = document.querySelectorAll('[id^="stock-"]');
+            let stokEl = null;
+            for (const e of els) if (!e.id.startsWith("stockCode-")) { stokEl = e; break; }
+            if (stokEl) { setNativeValue(stokEl, String(deger)); log.push(`✅ ${label}: ${deger}`); }
+            else log.push(`❌ ${label}: stok alanı bulunamadı`);
+            break;
+          }
+
+          case "jodit": {
+            if (isEmpty(deger)) { log.push(`↷ ${label}: boş, atlandı`); break; }
+            const joditIframe = document.querySelector(cfg.sec);
+            if (joditIframe) {
+              const iDoc = joditIframe.contentDocument || joditIframe.contentWindow?.document;
+              const iBody = iDoc?.body;
+              if (iBody) {
+                iBody.focus();
+                iBody.innerHTML = toParagraphs(deger);
+                iBody.dispatchEvent(new Event("input", { bubbles: true }));
+                log.push(`✅ ${label} dolduruldu (Jodit)`);
+              } else { log.push(`❌ ${label}: Jodit iframe body bulunamadı`); }
+            } else { log.push(`❌ ${label}: Jodit iframe bulunamadı`); }
+            break;
+          }
+
+          default:
+            log.push(`⚠️ ${label}: bilinmeyen tip "${cfg.tip}"`);
+        }
+      } catch (err) {
+        log.push(`❌ ${label}: hata — ${err.message}`);
+      }
+    }
+
+    log.push(`— ${siteKey} tamamlandı.`);
     return log.join("\n");
   }
 
   // ==========================================================================
-  //  Trendyol (Baklava Web Components: <bl-input>, <bl-select>, ...)
+  //  Site yönlendirme — DAİMA URL'den çözülür.
   // ==========================================================================
-  // Placeholder'a gore bl-input / bl-select bul.
-  const getBlInp = (ph) => Array.from(document.querySelectorAll("bl-input"))
-    .find((el) => (el.getAttribute("placeholder") || "").includes(ph));
-  const getBlSel = (ph) => Array.from(document.querySelectorAll("bl-select"))
-    .find((el) => (el.getAttribute("placeholder") || "").includes(ph));
-
-  // bl-input: shadow DOM icindeki gercek <input>'a yaz.
-  function setBlInput(blEl, value) {
-    if (!blEl) return false;
-    const inner = blEl.shadowRoot?.querySelector("input") ||
-                  blEl.shadowRoot?.querySelector("textarea");
-    if (!inner) return false;
-    setNativeValue(inner, String(value));
-    return true;
-  }
-
-  // bl-select: shadow .select-input ile ac, metne gore bl-select-option sec.
-  async function openAndSelectBlOption(blSelectEl, matchText, log, label) {
-    if (isEmpty(matchText)) { log.push(`↷ ${label}: bos, atlandi`); return; }
-    if (!blSelectEl) { log.push(`❌ ${label}: bl-select bulunamadi`); return; }
-    const trigger = blSelectEl.shadowRoot?.querySelector(".select-input");
-    (trigger || blSelectEl).click();
-    await sleep(500);
-    const options = blSelectEl.querySelectorAll("bl-select-option");
-    let picked = null;
-    for (const opt of options) {
-      if (lc(opt.textContent.trim()).includes(lc(matchText))) { picked = opt; break; }
-    }
-    if (!picked && options.length) picked = options[0];
-    if (picked) {
-      const innerOpt = picked.shadowRoot?.firstElementChild ||
-                       picked.shadowRoot?.querySelector("li, div");
-      (innerOpt || picked).click();
-      await sleep(300);
-      log.push(`✅ ${label}: ${picked.textContent.trim()}`);
-    } else {
-      log.push(`❌ ${label}: "${matchText}" secenegi bulunamadi`);
-    }
-  }
-
-  // Kategori agacini adim adim tiklayarak gez (Trendyol'da arama yok).
-  async function selectCategoryTree(categoryPath, log) {
-    const blInputs = document.querySelectorAll("bl-input");
-    const katBlInput = Array.from(blInputs)
-      .find((el) => el.getAttribute("placeholder") === "Kategori") || blInputs[2];
-    if (!katBlInput) { log.push("❌ Kategori: bl-input bulunamadi"); return; }
-    katBlInput.click();
-    await sleep(400);
-    for (const step of categoryPath) {
-      const items = document.querySelectorAll(".dropdown-item.tree-item");
-      let target = null;
-      for (const item of items) {
-        const text = item.querySelector(".tree-item-content")?.textContent?.trim();
-        if (text === step) { target = item; break; }
-      }
-      if (target) {
-        target.click();
-        await sleep(500);
-        log.push(`✅ Kategori adimi: ${step}`);
-      } else {
-        log.push(`❌ Kategori adimi bulunamadi: "${step}"`);
-        return;
-      }
-    }
-  }
-
-  async function fillFormTrendyol(data) {
-    const log = [];
-    const satis = data.satis || {};
-    const ty = data.trendyol || {};
-
-    // 1) KATEGORI — EN BASTA. Once "Ürün Adı" girilirse kategori akisini bozuyor.
-    if (ty.kategori_agaci?.length) {
-      await selectCategoryTree(ty.kategori_agaci, log);
-      await sleep(800); // ozellikler bolumunun yuklenmesini bekle
-    } else { log.push("↷ Kategori: bos, atlandi"); }
-
-    // 2) Urun Adi
-    if (!isEmpty(data.urun_adi)) {
-      setBlInput(getBlInp("Ürün Adı"), data.urun_adi);
-      log.push("✅ Urun Adi: " + data.urun_adi);
-    } else { log.push("↷ Urun Adi: bos, atlandi"); }
-
-    // 3) Model Kodu
-    if (!isEmpty(ty.model_kodu)) {
-      setBlInput(getBlInp("Model Kodu"), ty.model_kodu);
-      log.push("✅ Model Kodu: " + ty.model_kodu);
-    } else { log.push("↷ Model Kodu: bos, atlandi"); }
-
-    // 4) Urun Markasi — arayarak secilen bl-select
-    if (!isEmpty(data.marka)) {
-      const markaSel = getBlSel("Ürün Markası");
-      if (markaSel) {
-        markaSel.shadowRoot?.querySelector(".select-input")?.click();
-        await sleep(300);
-        const searchInp = markaSel.shadowRoot?.querySelector("input");
-        if (searchInp) {
-          setNativeValue(searchInp, data.marka);
-          searchInp.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-        }
-        await sleep(800); // API sonuclarini bekle
-        const opts = markaSel.querySelectorAll("bl-select-option");
-        let picked = null;
-        for (const opt of opts) {
-          if (lc(opt.textContent.trim()).includes(lc(data.marka))) { picked = opt; break; }
-        }
-        if (!picked && opts.length) picked = opts[0];
-        if (picked) {
-          (picked.shadowRoot?.firstElementChild || picked).click();
-          log.push("✅ Marka: " + picked.textContent.trim());
-        } else { log.push("❌ Marka: secenegi bulunamadi"); }
-        await sleep(300);
-      } else { log.push("❌ Marka: bl-select bulunamadi"); }
-    } else { log.push("↷ Marka: bos, atlandi"); }
-
-    // 5) Aciklama — contenteditable #rich-content-wrapper
-    if (!isEmpty(data.aciklama)) {
-      const editor = document.querySelector("#rich-content-wrapper") ||
-                     document.querySelector('[contenteditable="true"]');
-      if (editor) {
-        editor.focus();
-        editor.innerHTML = toParagraphs(data.aciklama);
-        editor.dispatchEvent(new Event("input", { bubbles: true }));
-        log.push("✅ Aciklama dolduruldu");
-      } else { log.push("❌ Aciklama: #rich-content-wrapper bulunamadi"); }
-    } else { log.push("↷ Aciklama: bos, atlandi"); }
-
-    // 6) Satis tablosu — bl-table-cell indeksleri
-    // [Gorsel=0, Barkod=1, Satis Fiyati=2, Stok=3, KDV=4, OTV=5, Stok Kodu=6, Parti/Lot=7]
-    const cells = document.querySelectorAll("bl-table-cell");
-    const cellBl = (i, value, label) => {
-      if (isEmpty(value)) { log.push(`↷ ${label}: bos, atlandi`); return; }
-      if (!cells[i]) { log.push(`❌ ${label}: hucre yok (${i})`); return; }
-      setBlInput(cells[i].querySelector("bl-input"), String(value));
-      log.push(`✅ ${label}: ${value}`);
-    };
-    const cellNative = (i, value, label) => {
-      if (isEmpty(value)) { log.push(`↷ ${label}: bos, atlandi`); return; }
-      const inp = cells[i]?.querySelector("input");
-      if (inp) { setNativeValue(inp, String(value)); log.push(`✅ ${label}: ${value}`); }
-      else log.push(`❌ ${label}: hucre yok (${i})`);
-    };
-
-    cellBl(1, satis.barkod, "Barkod");
-    cellNative(2, formatMoney(satis.satis_fiyati), "Satis Fiyati");
-    cellNative(3, satis.stok_adet, "Stok");
-    if (!isEmpty(satis.kdv_orani)) {
-      await openAndSelectBlOption(cells[4]?.querySelector("bl-select"), String(satis.kdv_orani), log, "KDV");
-    } else { log.push("↷ KDV: bos, atlandi"); }
-    cellBl(6, satis.stok_kodu, "Stok Kodu");
-    cellBl(7, satis.parti_kodu, "Parti/Lot/SKT");
-
-    // 7) Urun ozellikleri — placeholder ile bulunan bl-select'ler
-    await openAndSelectBlOption(getBlSel("Menşei"), ty.mensei, log, "Mensei");
-    await openAndSelectBlOption(getBlSel("Garanti Süresi"), ty.garanti_suresi, log, "Garanti Suresi");
-    await openAndSelectBlOption(getBlSel("Pil Gücü"), ty.pil_gucu_mah, log, "Pil Gucu");
-    await openAndSelectBlOption(getBlSel("Uyumlu Marka"), ty.uyumlu_marka, log, "Uyumlu Marka");
-    await openAndSelectBlOption(getBlSel("Garanti Tipi"), ty.garanti_tipi, log, "Garanti Tipi");
-    await openAndSelectBlOption(getBlSel("Tamir Edilebilirlik"), ty.tamir_edilebilirlik, log, "Tamir Edilebilirlik");
-
-    log.push("— Trendyol tamamlandi.");
-    return log.join("\n");
-  }
-
-  // ==========================================================================
-  //  Site yonlendirme
-  // ==========================================================================
-  const FILLERS = {
-    n11: fillFormN11,
-    trendyol: fillFormTrendyol
-  };
-
-  // Site DAIMA sayfanin URL'inden cozulur (JSON'da site bilgisi tutulmaz).
   function detectSiteFromUrl() {
     if (/^https:\/\/partner\.trendyol\.com\//.test(location.href)) return "trendyol";
     if (/^https:\/\/so\.n11\.com\//.test(location.href)) return "n11";
     return null;
   }
 
-  window.__formFiller_run = async function (data /*, site (yok sayilir) */) {
+  window.__formFiller_run = async function (data /*, site (yok sayılır) */) {
     const key = detectSiteFromUrl();
-    const filler = key && FILLERS[key];
-    if (!filler) return `❌ Desteklenmeyen sayfa: ${location.hostname}`;
+    if (!key) return `❌ Desteklenmeyen sayfa: ${location.hostname}`;
     try {
-      return await filler(data);
+      return await doldur(key, data);
     } catch (err) {
-      return `❌ Doldurma sirasinda hata: ${err.message}`;
+      return `❌ Doldurma sırasında hata: ${err.message}`;
     }
   };
 })();
